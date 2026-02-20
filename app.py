@@ -79,17 +79,17 @@ def rag_query(query: str) -> str:
         context = retrieve(query)
         prompt = POLICY_PROMPT_TEMPLATE.format(context=context, query=query)
         
-        # Tokenize and generate
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
-        outputs = model.generate(
-            **inputs, 
-            max_new_tokens=512,
-            min_new_tokens=150,
-            do_sample=True,
-            temperature=0.8,
-            top_p=0.95,
-            repetition_penalty=2.0
-        )
+        # Optimize for speed: use inference_mode and faster generation settings
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+        
+        with torch.inference_mode():
+            outputs = model.generate(
+                **inputs, 
+                max_new_tokens=250,  # Reduced for speed
+                do_sample=False,     # Greedy search is significantly faster
+                repetition_penalty=1.2
+            )
+        
         return tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
     except Exception as e:
         return f"Error during generation: {str(e)}"
