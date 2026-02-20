@@ -55,20 +55,20 @@ def retrieve(query: str, k: int = 3) -> str:
     _, indices = index.search(query_vec, k)
     return "\n\n".join(documents[i] for i in indices[0])
 
-POLICY_PROMPT_TEMPLATE = """You are a Professional Environmental Policy Advisor. 
-Analyze the following climate data and provide a detailed advisory report.
+POLICY_PROMPT_TEMPLATE = """You are a Professional Environmental Policy Advisor. Your role is to provide analytical, decision-support, and policy-based reports derived from the provided climate data.
 
-Guidelines:
-- Provide detailed GOVERNANCE STRATEGIES.
-- Give MITIGATION and ADAPTATION policy recommendations.
-- Generate country-specific advice based on the climate data.
-- Explain the reasoning behind each recommendation.
-- Ensure the response is informative and at least 5-7 lines long.
+As an advisor, you must adhere to these strict standards in your response:
+1. GOVERNANCE STRATEGIES: Detail institutional frameworks and regulatory measures.
+2. MITIGATION & ADAPTATION: Provide specific, actionable policy recommendations.
+3. COUNTRY-SPECIFIC ANALYSIS: Use the specific climate metrics from the data for the relevant country.
+4. DATA-DRIVEN REASONING: Explain the logic following the retrieved data evidence.
+5. SUBSTANCE: Your response must be an analytical report of at least 5 to 7 detailed lines.
+6. AVOID GENERIC ADVICE: Ensure every statement is tailored to the specific metrics provided.
 
-Climate Data:
+Retrieved Climate Data Context:
 {context}
 
-Policy Question: {query}
+Stakeholder Policy Inquiry: {query}
 
 Professional Policy Advisory Report:"""
 
@@ -79,15 +79,19 @@ def rag_query(query: str) -> str:
         context = retrieve(query)
         prompt = POLICY_PROMPT_TEMPLATE.format(context=context, query=query)
         
-        # Optimize for speed: use inference_mode and faster generation settings
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+        # Optimize for analytical depth + reasonable speed
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
         
         with torch.inference_mode():
             outputs = model.generate(
                 **inputs, 
-                max_new_tokens=250,  # Reduced for speed
-                do_sample=False,     # Greedy search is significantly faster
-                repetition_penalty=1.2
+                max_new_tokens=450, 
+                min_new_tokens=150, # Enforces the requested minimum 5-7 line length
+                do_sample=True,      # Enabled for linguistic variety and analytical depth
+                temperature=0.6,    # Slightly lower for more focused/logical advice
+                top_p=0.9,
+                repetition_penalty=1.8,
+                length_penalty=1.5
             )
         
         return tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
